@@ -1,0 +1,33 @@
+name: Run Marvin tidy daily
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # Every day at 06:00 UTC
+  workflow_dispatch:      # Allow manual run from the Actions tab
+
+jobs:
+  run-marvin-tidy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests openai
+
+      - name: Run Marvin script
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          MARVIN_API_TOKEN: ${{ secrets.MARVIN_API_TOKEN }}
+          MARVIN_FULL_ACCESS_TOKEN: ${{ secrets.MARVIN_FULL_ACCESS_TOKEN }}
+        run: |
+          python final_marvin_update.py
+
