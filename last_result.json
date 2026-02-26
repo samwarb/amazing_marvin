@@ -1,6 +1,8 @@
 {
-  "query": "When is the deligo integration meant to go live?",
-  "answer": "No relevant projects were identified for this query.",
-  "timestamp": "2026-02-26T19:58:26.749867+00:00",
-  "projects": []
+  "query": "what is the unit number for bny dublin?",
+  "answer": "The unit number for BNY Dublin is 98711.",
+  "timestamp": "2026-02-26T20:00:00.989363+00:00",
+  "projects": [
+    "BNY Dublin"
+  ]
 }
