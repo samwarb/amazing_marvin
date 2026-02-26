@@ -564,14 +564,16 @@
         }).join('\n');
         const userMsg1 = `Query: ${query}\n\nProjects:\n${roster}`;
         let relevantIds = [];
+        // openaiChat throws on API errors (401, 429, etc.) — let those propagate
+        const raw = await openaiChat(PROMPT_IDENTIFY_SYSTEM, userMsg1);
+        console.debug('[Marvin] identify raw response:', raw);
         try {
-          const raw = await openaiChat(PROMPT_IDENTIFY_SYSTEM, userMsg1);
-          console.debug('[Marvin] identify raw response:', raw);
           // Strip markdown code fences in case model wraps output
           const clean = raw.replace(/^```(?:json)?\s*|\s*```$/g, '').trim();
           const parsed = JSON.parse(clean);
           relevantIds = Array.isArray(parsed) ? parsed : [];
         } catch (_) {
+          // JSON parse failed — treat as no match
           relevantIds = [];
         }
 
