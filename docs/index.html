@@ -396,7 +396,7 @@
     const MODEL       = 'gpt-4.1-nano';
 
     // ── OpenAI prompts (identical to search_marvin.py) ─────────────────────────
-    const PROMPT_IDENTIFY_SYSTEM = `You are a search assistant for a personal task manager. Given a user query and a list of projects, identify which projects are most likely to contain the answer. Return ONLY a JSON array of the relevant project IDs (strings), ordered by relevance, maximum 5 items. If no project seems relevant, return an empty array []. Return valid JSON only — no explanation, no markdown.`;
+    const PROMPT_IDENTIFY_SYSTEM = `You are a search assistant for a personal task manager. Given a user query and a list of projects, identify which projects are most likely to contain the answer. Return ONLY a JSON array of the relevant project IDs (strings), ordered by relevance, maximum 10 items. When in doubt, include the project — it is better to search too many than too few. If no project seems relevant, return an empty array []. Return valid JSON only — no explanation, no markdown.`;
 
     const PROMPT_ANSWER_SYSTEM = `You are a personal assistant with access to a user's task manager data. Answer the user's question directly and concisely using ONLY the information provided below. If the answer is clearly present, state it plainly. If the information is not found in the provided data, say so explicitly — do not guess or hallucinate. Format your answer for readability.`;
 
@@ -430,6 +430,30 @@
     });
 
     if (!LS.isConfigured) openSettings(true);
+
+    // ── Keyword pre-filter ─────────────────────────────────────────────────────
+    const STOP_WORDS = new Set([
+      'the','and','for','with','what','when','where','how','this','that','from',
+      'are','was','were','been','have','has','will','you','your','not','can',
+      'its','into','than','then','but','also','any','all','get','got','did',
+      'does','about','which','there','their','they','would','use','using',
+    ]);
+
+    function keywordFilter(query, projects) {
+      const words = query.toLowerCase()
+        .replace(/[^a-z0-9 ]/g, ' ')
+        .split(/\s+/)
+        .filter(w => w.length > 2 && !STOP_WORDS.has(w));
+
+      if (words.length === 0) return projects;
+
+      const matches = projects.filter(p => {
+        const haystack = ((p.title || '') + ' ' + (p.note || '')).toLowerCase();
+        return words.some(w => haystack.includes(w));
+      });
+
+      return matches.length > 0 ? matches : projects; // fallback: return all
+    }
 
     // ── UI helpers ─────────────────────────────────────────────────────────────
     const queryInput  = document.getElementById('query-input');
@@ -532,7 +556,12 @@
 
         // Step 2: Identify relevant projects with OpenAI
         activateStep(1);
-        const roster = allProjects.map(p => `ID: ${p._id} | Title: ${p.title}`).join('\n');
+        const candidates = keywordFilter(query, allProjects);
+        console.debug('[Marvin] keyword candidates:', candidates.length, candidates.map(p => p.title));
+        const roster = candidates.map(p => {
+          const noteSnippet = p.note ? ` | Note: ${p.note.slice(0, 80)}` : '';
+          return `ID: ${p._id} | Title: ${p.title}${noteSnippet}`;
+        }).join('\n');
         const userMsg1 = `Query: ${query}\n\nProjects:\n${roster}`;
         let relevantIds = [];
         try {
@@ -547,7 +576,9 @@
         }
 
         if (relevantIds.length === 0) {
-          answerText.textContent = `No relevant projects were found for this query.\n(Searched ${allProjects.length} projects)`;
+          answerText.textContent =
+            `No relevant projects were found for this query.\n` +
+            `(Scanned ${candidates.length} candidate projects from ${allProjects.length} total)`;
           metaQuery.textContent  = 'Query: ' + query;
           metaProj.textContent   = '';
           allSteps.forEach(s => setStep(s, 'done'));
@@ -556,7 +587,7 @@
           return;
         }
 
-        const projectMap = Object.fromEntries(allProjects.map(p => [p._id, p]));
+        const projectMap = Object.fromEntries(candidates.map(p => [p._id, p]));
         const relevantProjects = relevantIds.map(id => projectMap[id]).filter(Boolean);
 
         // Step 3: Fetch doc + children for each project in parallel
