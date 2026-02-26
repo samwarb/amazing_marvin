@@ -28,8 +28,9 @@ jobs:
 
       - name: Run search
         env:
-          OPENAI_API_KEY:   ${{ secrets.OPENAI_API_KEY }}
-          MARVIN_API_TOKEN: ${{ secrets.MARVIN_API_TOKEN }}
-          SEARCH_QUERY:     ${{ inputs.query }}
+          OPENAI_API_KEY:            ${{ secrets.OPENAI_API_KEY }}
+          MARVIN_API_TOKEN:          ${{ secrets.MARVIN_API_TOKEN }}
+          MARVIN_FULL_ACCESS_TOKEN:  ${{ secrets.MARVIN_FULL_ACCESS_TOKEN }}
+          SEARCH_QUERY:              ${{ inputs.query }}
         run: |
           python search_marvin.py

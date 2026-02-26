@@ -7,6 +7,7 @@ if not exist secrets.env (
     echo.
     echo Create a file called secrets.env in the same folder as this script with:
     echo   MARVIN_API_TOKEN=your_token_here
+    echo   MARVIN_FULL_ACCESS_TOKEN=your_full_access_token_here
     echo   OPENAI_API_KEY=your_key_here
     echo.
     pause
