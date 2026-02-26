@@ -11,6 +11,8 @@ on:
 jobs:
   search:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repository
@@ -34,3 +36,10 @@ jobs:
           SEARCH_QUERY:              ${{ inputs.query }}
         run: |
           python search_marvin.py
+
+      - name: Save result to repo
+        run: |
+          git config user.email "action@github.com"
+          git config user.name "GitHub Action"
+          git add last_result.json
+          git diff --staged --quiet || (git commit -m "chore: save search result" && git push)

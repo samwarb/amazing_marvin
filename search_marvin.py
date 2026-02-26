@@ -273,9 +273,15 @@ def main():
     relevant = identify_relevant_projects(query, all_projects)
 
     if not relevant:
-        print("\nResult: No relevant projects identified for this query.")
+        no_match_answer = "No relevant projects were identified for this query."
+        print("\nResult: " + no_match_answer)
         print_usage_summary()
-        write_github_summary(query, [], "No relevant projects were identified for this query.")
+        write_github_summary(query, [], no_match_answer)
+        if os.getenv("GITHUB_ACTIONS"):
+            from datetime import datetime, timezone
+            with open("last_result.json", "w") as _f:
+                json.dump({"query": query, "answer": no_match_answer,
+                           "timestamp": datetime.now(timezone.utc).isoformat(), "projects": []}, _f, indent=2)
         sys.exit(0)
 
     print(f"  Relevant projects: {[p['title'] for p in relevant]}")
@@ -296,6 +302,13 @@ def main():
 
     print_usage_summary()
     write_github_summary(query, relevant, answer)
+
+    if os.getenv("GITHUB_ACTIONS"):
+        from datetime import datetime, timezone
+        with open("last_result.json", "w") as _f:
+            json.dump({"query": query, "answer": answer,
+                       "timestamp": datetime.now(timezone.utc).isoformat(),
+                       "projects": [p["title"] for p in relevant]}, _f, indent=2)
 
 
 if __name__ == "__main__":
