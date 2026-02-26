@@ -571,7 +571,7 @@
         let runId = null;
         const findDeadline = Date.now() + 30_000;
         while (!runId && Date.now() < findDeadline) {
-          await sleep(4000);
+          await sleep(2000);
           const run = await findRun(since);
           if (run) runId = run.id;
         }
@@ -581,8 +581,8 @@
         let elapsed = 0;
         const TIMEOUT = 180_000;
         while (elapsed < TIMEOUT) {
-          await sleep(5000);
-          elapsed += 5000;
+          await sleep(3000);
+          elapsed += 3000;
           const run = await pollRun(runId);
           const secs = Math.round((Date.now() - since.getTime()) / 1000);
           stepWaitText.textContent = `Waiting for result… (${secs}s)`;

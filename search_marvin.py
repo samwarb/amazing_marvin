@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import requests
 from openai import OpenAI
@@ -115,36 +116,34 @@ def identify_relevant_projects(query: str, projects: list) -> list:
 
 # ─── PHASE 2: Gather full content for each relevant project ───────────────────
 
+def _fetch_one_project(proj: dict) -> dict:
+    pid   = proj["_id"]
+    title = proj.get("title", "Unknown")
+
+    try:
+        doc  = get_project_doc(pid)
+        note = doc.get("note", "").strip()
+    except Exception as e:
+        print(f"  Warning: could not fetch doc for '{title}': {e}")
+        note = proj.get("note", "").strip()
+
+    try:
+        children = get_project_children(pid)
+        tasks    = [c for c in children if c.get("db") == "Tasks"]
+    except Exception as e:
+        print(f"  Warning: could not fetch children for '{title}': {e}")
+        tasks = []
+
+    return {"id": pid, "title": title, "note": note, "tasks": tasks}
+
+
 def gather_project_content(projects: list) -> list:
-    results = []
-    for proj in projects:
-        pid   = proj["_id"]
-        title = proj.get("title", "Unknown")
-
-        # Fetch full doc (note field may be richer than the /categories version)
-        try:
-            doc  = get_project_doc(pid)
-            note = doc.get("note", "").strip()
-        except Exception as e:
-            print(f"  Warning: could not fetch doc for '{title}': {e}")
-            note = proj.get("note", "").strip()
-
-        # Fetch child tasks
-        try:
-            children = get_project_children(pid)
-            tasks    = [c for c in children if c.get("db") == "Tasks"]
-        except Exception as e:
-            print(f"  Warning: could not fetch children for '{title}': {e}")
-            tasks = []
-
-        results.append({
-            "id":    pid,
-            "title": title,
-            "note":  note,
-            "tasks": tasks
-        })
-
-    return results
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = {executor.submit(_fetch_one_project, p): p for p in projects}
+        results = [f.result() for f in as_completed(futures)]
+    # Restore original order from identify_relevant_projects
+    order = {p["_id"]: i for i, p in enumerate(projects)}
+    return sorted(results, key=lambda r: order[r["id"]])
 
 
 # ─── PHASE 3: Generate an answer from gathered content ───────────────────────
