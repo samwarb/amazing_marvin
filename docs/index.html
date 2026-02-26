@@ -525,9 +525,10 @@
       statusArea.style.display = 'block';
 
       try {
-        // Step 1: Fetch all projects
+        // Step 1: Fetch all projects (include done/archived — they may still hold useful data)
         activateStep(0);
-        const allProjects = (await marvinGet('/categories')).filter(p => !p.done);
+        const allProjects = await marvinGet('/categories');
+        console.debug('[Marvin] projects loaded:', allProjects.length);
 
         // Step 2: Identify relevant projects with OpenAI
         activateStep(1);
@@ -536,14 +537,17 @@
         let relevantIds = [];
         try {
           const raw = await openaiChat(PROMPT_IDENTIFY_SYSTEM, userMsg1);
-          const parsed = JSON.parse(raw);
+          console.debug('[Marvin] identify raw response:', raw);
+          // Strip markdown code fences in case model wraps output
+          const clean = raw.replace(/^```(?:json)?\s*|\s*```$/g, '').trim();
+          const parsed = JSON.parse(clean);
           relevantIds = Array.isArray(parsed) ? parsed : [];
         } catch (_) {
           relevantIds = [];
         }
 
         if (relevantIds.length === 0) {
-          answerText.textContent = 'No relevant projects were found for this query.';
+          answerText.textContent = `No relevant projects were found for this query.\n(Searched ${allProjects.length} projects)`;
           metaQuery.textContent  = 'Query: ' + query;
           metaProj.textContent   = '';
           allSteps.forEach(s => setStep(s, 'done'));
