@@ -44,21 +44,14 @@
       text-align: center;
       margin-bottom: 36px;
     }
-    header .logo {
-      font-size: 2.4rem;
-      margin-bottom: 8px;
-    }
+    header .logo { font-size: 2.4rem; margin-bottom: 8px; }
     header h1 {
       font-size: 2rem;
       font-weight: 700;
       color: #1a1a2e;
       letter-spacing: -0.5px;
     }
-    header p {
-      margin-top: 6px;
-      color: #666;
-      font-size: 0.95rem;
-    }
+    header p { margin-top: 6px; color: #666; font-size: 0.95rem; }
 
     /* ── Card ── */
     .card {
@@ -71,10 +64,7 @@
     }
 
     /* ── Search form ── */
-    #search-form {
-      display: flex;
-      gap: 10px;
-    }
+    #search-form { display: flex; gap: 10px; }
     #query-input {
       flex: 1;
       border: 1.5px solid #d8dce5;
@@ -112,33 +102,28 @@
     #ask-btn:disabled { background: #b3a0f5; cursor: not-allowed; }
 
     /* ── Status ── */
-    #status-area {
-      margin-top: 24px;
-      display: none;
-    }
+    #status-area { margin-top: 24px; display: none; }
     .status-step {
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 8px 0;
+      padding: 7px 0;
       font-size: 0.9rem;
       color: #555;
     }
     .status-step .icon {
-      width: 20px;
-      height: 20px;
+      width: 20px; height: 20px;
       flex-shrink: 0;
       display: flex;
       align-items: center;
       justify-content: center;
     }
     .status-step.pending .icon { color: #ccc; }
-    .status-step.active .icon { color: #6c47ff; }
-    .status-step.done .icon { color: #22c55e; }
+    .status-step.active  .icon { color: #6c47ff; }
+    .status-step.done    .icon { color: #22c55e; }
     .status-step.active { color: #333; font-weight: 500; }
-    .status-step.done { color: #888; }
+    .status-step.done   { color: #999; }
 
-    /* Spinner */
     .spinner {
       width: 18px; height: 18px;
       border: 2.5px solid #e0d9ff;
@@ -162,12 +147,8 @@
     #error-area strong { display: block; margin-bottom: 4px; }
 
     /* ── Answer ── */
-    #answer-area {
-      display: none;
-      margin-top: 28px;
-      animation: fadeIn 0.4s ease;
-    }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    #answer-area { display: none; margin-top: 28px; animation: fadeIn 0.35s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; } }
 
     .answer-label {
       font-size: 0.75rem;
@@ -196,8 +177,6 @@
       flex-wrap: wrap;
       gap: 6px 16px;
     }
-    #answer-meta span::before { content: '· '; }
-    #answer-meta span:first-child::before { content: ''; }
 
     /* ── Settings modal ── */
     #modal-overlay {
@@ -218,12 +197,10 @@
       padding: 32px;
       width: min(480px, calc(100vw - 32px));
       position: relative;
+      max-height: 90vh;
+      overflow-y: auto;
     }
-    #settings-modal h2 {
-      font-size: 1.15rem;
-      font-weight: 700;
-      margin-bottom: 20px;
-    }
+    #settings-modal h2 { font-size: 1.15rem; font-weight: 700; margin-bottom: 20px; }
     #modal-close {
       position: absolute;
       top: 16px; right: 16px;
@@ -256,11 +233,7 @@
       border-color: #6c47ff;
       box-shadow: 0 0 0 3px rgba(108,71,255,0.12);
     }
-    .field .hint {
-      margin-top: 4px;
-      font-size: 0.75rem;
-      color: #999;
-    }
+    .field .hint { margin-top: 4px; font-size: 0.75rem; color: #999; }
     .field .hint a { color: #6c47ff; text-decoration: none; }
     .field .hint a:hover { text-decoration: underline; }
 
@@ -290,6 +263,17 @@
       line-height: 1.5;
     }
     .setup-notice strong { display: block; margin-bottom: 2px; }
+
+    .section-divider {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #aaa;
+      margin: 8px 0 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #f0f0f0;
+    }
   </style>
 </head>
 <body>
@@ -322,17 +306,21 @@
     </form>
 
     <div id="status-area">
-      <div class="status-step" id="step-trigger">
+      <div class="status-step" id="step-1">
         <span class="icon">○</span>
-        <span>Triggering search workflow…</span>
+        <span>Fetching your projects…</span>
       </div>
-      <div class="status-step" id="step-wait">
+      <div class="status-step" id="step-2">
         <span class="icon">○</span>
-        <span id="step-wait-text">Waiting for result…</span>
+        <span>Identifying relevant projects…</span>
       </div>
-      <div class="status-step" id="step-read">
+      <div class="status-step" id="step-3">
         <span class="icon">○</span>
-        <span>Reading answer…</span>
+        <span>Reading project details…</span>
+      </div>
+      <div class="status-step" id="step-4">
+        <span class="icon">○</span>
+        <span>Generating answer…</span>
       </div>
     </div>
 
@@ -347,7 +335,6 @@
       <div id="answer-meta">
         <span id="meta-query"></span>
         <span id="meta-projects"></span>
-        <span id="meta-time"></span>
       </div>
     </div>
   </div>
@@ -360,72 +347,76 @@
 
       <div class="setup-notice" id="first-run-notice" style="display:none">
         <strong>One-time setup</strong>
-        Enter your GitHub details below so the page can trigger searches and read results.
+        Enter your API credentials below. They're saved in your browser only.
       </div>
 
+      <div class="section-divider">Amazing Marvin</div>
+
       <div class="field">
-        <label for="s-token">GitHub Personal Access Token</label>
-        <input id="s-token" type="password" placeholder="ghp_…" />
+        <label for="s-marvin-token">API Token</label>
+        <input id="s-marvin-token" type="password" placeholder="Your Marvin API token" />
+        <div class="hint">Found in Amazing Marvin → Settings → API → API Token</div>
+      </div>
+      <div class="field">
+        <label for="s-marvin-full-token">Full Access Token</label>
+        <input id="s-marvin-full-token" type="password" placeholder="Your Marvin Full Access Token" />
+        <div class="hint">Found in Amazing Marvin → Settings → API → Full Access Token (needed for reading notes)</div>
+      </div>
+
+      <div class="section-divider">OpenAI</div>
+
+      <div class="field">
+        <label for="s-openai-key">API Key</label>
+        <input id="s-openai-key" type="password" placeholder="sk-…" />
         <div class="hint">
-          Needs <strong>repo</strong> scope (classic token) or <strong>Actions: Read &amp; Write</strong> +
-          <strong>Contents: Read &amp; Write</strong> (fine-grained).
-          <a href="https://github.com/settings/tokens/new" target="_blank" rel="noopener">Create one here ↗</a>
+          From <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com/api-keys ↗</a>
         </div>
       </div>
-      <div class="field">
-        <label for="s-owner">Repository Owner</label>
-        <input id="s-owner" type="text" placeholder="samwarb" />
-      </div>
-      <div class="field">
-        <label for="s-repo">Repository Name</label>
-        <input id="s-repo" type="text" placeholder="amazing_marvin" />
-      </div>
-      <div class="field">
-        <label for="s-branch">Branch</label>
-        <input id="s-branch" type="text" placeholder="main" />
-        <div class="hint">The branch the workflow is on (usually <code>main</code>).</div>
-      </div>
+
       <button id="save-settings-btn">Save</button>
     </div>
   </div>
 
   <script>
-    // ── Config ────────────────────────────────────────────────────────────────
+    // ── Config ─────────────────────────────────────────────────────────────────
     const LS = {
-      get token()  { return localStorage.getItem('marvin_gh_token')  || ''; },
-      get owner()  { return localStorage.getItem('marvin_gh_owner')  || 'samwarb'; },
-      get repo()   { return localStorage.getItem('marvin_gh_repo')   || 'amazing_marvin'; },
-      get branch() { return localStorage.getItem('marvin_gh_branch') || 'main'; },
-      save(token, owner, repo, branch) {
-        localStorage.setItem('marvin_gh_token',  token);
-        localStorage.setItem('marvin_gh_owner',  owner);
-        localStorage.setItem('marvin_gh_repo',   repo);
-        localStorage.setItem('marvin_gh_branch', branch);
-      }
+      get marvinToken()     { return localStorage.getItem('marvin_api_token')          || ''; },
+      get marvinFullToken() { return localStorage.getItem('marvin_full_access_token')  || ''; },
+      get openaiKey()       { return localStorage.getItem('marvin_openai_key')         || ''; },
+      save(marvinToken, marvinFullToken, openaiKey) {
+        localStorage.setItem('marvin_api_token',         marvinToken);
+        localStorage.setItem('marvin_full_access_token', marvinFullToken);
+        localStorage.setItem('marvin_openai_key',        openaiKey);
+      },
+      get isConfigured() { return !!(this.marvinToken && this.marvinFullToken && this.openaiKey); }
     };
 
-    const API = 'https://api.github.com';
-    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const MARVIN_BASE = 'https://serv.amazingmarvin.com/api';
+    const OPENAI_URL  = 'https://api.openai.com/v1/chat/completions';
+    const MODEL       = 'gpt-4.1-nano';
+
+    // ── OpenAI prompts (identical to search_marvin.py) ─────────────────────────
+    const PROMPT_IDENTIFY_SYSTEM = `You are a search assistant for a personal task manager. Given a user query and a list of projects, identify which projects are most likely to contain the answer. Return ONLY a JSON array of the relevant project IDs (strings), ordered by relevance, maximum 5 items. If no project seems relevant, return an empty array []. Return valid JSON only — no explanation, no markdown.`;
+
+    const PROMPT_ANSWER_SYSTEM = `You are a personal assistant with access to a user's task manager data. Answer the user's question directly and concisely using ONLY the information provided below. If the answer is clearly present, state it plainly. If the information is not found in the provided data, say so explicitly — do not guess or hallucinate. Format your answer for readability.`;
 
     // ── Settings modal ─────────────────────────────────────────────────────────
-    const overlay   = document.getElementById('modal-overlay');
-    const settBtn   = document.getElementById('settings-btn');
-    const closeBtn  = document.getElementById('modal-close');
-    const saveBtn   = document.getElementById('save-settings-btn');
-    const sToken    = document.getElementById('s-token');
-    const sOwner    = document.getElementById('s-owner');
-    const sRepo     = document.getElementById('s-repo');
-    const sBranch   = document.getElementById('s-branch');
-    const firstRun  = document.getElementById('first-run-notice');
+    const overlay       = document.getElementById('modal-overlay');
+    const settBtn       = document.getElementById('settings-btn');
+    const closeBtn      = document.getElementById('modal-close');
+    const saveBtn       = document.getElementById('save-settings-btn');
+    const sMarvin       = document.getElementById('s-marvin-token');
+    const sMarvinFull   = document.getElementById('s-marvin-full-token');
+    const sOpenai       = document.getElementById('s-openai-key');
+    const firstRunEl    = document.getElementById('first-run-notice');
 
     function openSettings(isFirstRun = false) {
-      sToken.value  = LS.token;
-      sOwner.value  = LS.owner;
-      sRepo.value   = LS.repo;
-      sBranch.value = LS.branch;
-      firstRun.style.display = isFirstRun ? '' : 'none';
+      sMarvin.value     = LS.marvinToken;
+      sMarvinFull.value = LS.marvinFullToken;
+      sOpenai.value     = LS.openaiKey;
+      firstRunEl.style.display = isFirstRun ? '' : 'none';
       overlay.classList.add('open');
-      if (!LS.token) sToken.focus();
+      if (!LS.marvinToken) sMarvin.focus();
     }
     function closeSettings() { overlay.classList.remove('open'); }
 
@@ -434,12 +425,11 @@
     overlay.addEventListener('click', e => { if (e.target === overlay) closeSettings(); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSettings(); });
     saveBtn.addEventListener('click', () => {
-      LS.save(sToken.value.trim(), sOwner.value.trim(), sRepo.value.trim(), sBranch.value.trim());
+      LS.save(sMarvin.value.trim(), sMarvinFull.value.trim(), sOpenai.value.trim());
       closeSettings();
     });
 
-    // Open on first load if no token
-    if (!LS.token) openSettings(true);
+    if (!LS.isConfigured) openSettings(true);
 
     // ── UI helpers ─────────────────────────────────────────────────────────────
     const queryInput  = document.getElementById('query-input');
@@ -452,21 +442,13 @@
     const answerText  = document.getElementById('answer-text');
     const metaQuery   = document.getElementById('meta-query');
     const metaProj    = document.getElementById('meta-projects');
-    const metaTime    = document.getElementById('meta-time');
 
-    const steps = {
-      trigger: document.getElementById('step-trigger'),
-      wait:    document.getElementById('step-wait'),
-      read:    document.getElementById('step-read'),
-    };
-    const stepWaitText = document.getElementById('step-wait-text');
-
-    function resetUI() {
-      statusArea.style.display  = 'none';
-      errorArea.style.display   = 'none';
-      answerArea.style.display  = 'none';
-      Object.values(steps).forEach(s => setStep(s, 'pending'));
-    }
+    const allSteps = [
+      document.getElementById('step-1'),
+      document.getElementById('step-2'),
+      document.getElementById('step-3'),
+      document.getElementById('step-4'),
+    ];
 
     function setStep(el, state) {
       el.className = 'status-step ' + state;
@@ -476,133 +458,153 @@
       else if (state === 'done') icon.innerHTML = '✓';
     }
 
+    function activateStep(index) {
+      allSteps.forEach((s, i) => {
+        if (i < index)  setStep(s, 'done');
+        else if (i === index) setStep(s, 'active');
+        else setStep(s, 'pending');
+      });
+    }
+
+    function resetUI() {
+      statusArea.style.display = 'none';
+      errorArea.style.display  = 'none';
+      answerArea.style.display = 'none';
+      allSteps.forEach(s => setStep(s, 'pending'));
+    }
+
     function showError(title, detail) {
       askBtn.disabled = false;
-      setStep(steps.trigger, 'pending');
-      setStep(steps.wait, 'pending');
-      setStep(steps.read, 'pending');
       errorTitle.textContent  = title;
       errorDetail.textContent = detail;
       errorArea.style.display = 'block';
+      allSteps.forEach(s => setStep(s, 'pending'));
     }
 
-    function showAnswer(data) {
-      answerText.textContent = data.answer;
-      metaQuery.textContent  = 'Query: ' + data.query;
-      metaProj.textContent   = data.projects && data.projects.length
-        ? 'Projects: ' + data.projects.join(', ') : '';
-      if (!data.projects || !data.projects.length) metaProj.style.display = 'none';
-      else metaProj.style.display = '';
-      if (data.timestamp) {
-        const d = new Date(data.timestamp);
-        metaTime.textContent = 'Run: ' + d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) + ' ' + d.toLocaleDateString();
-      }
-      setStep(steps.read, 'done');
-      answerArea.style.display = 'block';
-      askBtn.disabled = false;
-    }
-
-    // ── GitHub API calls ───────────────────────────────────────────────────────
-    function headers() {
-      return {
-        'Authorization': `token ${LS.token}`,
-        'Accept': 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
-      };
-    }
-
-    async function triggerWorkflow(query) {
-      const url = `${API}/repos/${LS.owner}/${LS.repo}/actions/workflows/search.yml/dispatches`;
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { ...headers(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ref: LS.branch, inputs: { query } }),
-      });
-      if (res.status === 404) throw new Error('Workflow not found. Check owner/repo/branch in settings.');
-      if (res.status === 401 || res.status === 403) throw new Error('GitHub token invalid or missing required permissions (needs repo or Actions:Write scope).');
-      if (!res.ok) throw new Error(`Trigger failed: HTTP ${res.status}`);
-    }
-
-    async function findRun(since) {
-      const url = `${API}/repos/${LS.owner}/${LS.repo}/actions/runs?event=workflow_dispatch&per_page=10`;
-      const res = await fetch(url, { headers: headers() });
-      if (!res.ok) throw new Error(`Failed to list runs: HTTP ${res.status}`);
-      const data = await res.json();
-      return (data.workflow_runs || []).find(r =>
-        r.name === 'Search Marvin' && new Date(r.created_at) >= since
-      ) || null;
-    }
-
-    async function pollRun(runId) {
-      const url = `${API}/repos/${LS.owner}/${LS.repo}/actions/runs/${runId}`;
-      const res = await fetch(url, { headers: headers() });
-      if (!res.ok) throw new Error(`Failed to poll run: HTTP ${res.status}`);
+    // ── API helpers ────────────────────────────────────────────────────────────
+    async function marvinGet(path, useFullToken = false) {
+      const header = useFullToken
+        ? { 'X-Full-Access-Token': LS.marvinFullToken }
+        : { 'X-API-Token': LS.marvinToken };
+      const res = await fetch(MARVIN_BASE + path, { headers: header });
+      if (!res.ok) throw new Error(`Marvin API error ${res.status} for ${path}`);
       return res.json();
     }
 
-    async function fetchResult() {
-      const url = `${API}/repos/${LS.owner}/${LS.repo}/contents/last_result.json`;
-      const res = await fetch(url, { headers: headers() });
-      if (res.status === 404) throw new Error('last_result.json not found in repo — did the workflow complete successfully?');
-      if (!res.ok) throw new Error(`Failed to fetch result: HTTP ${res.status}`);
+    async function openaiChat(systemMsg, userMsg) {
+      const res = await fetch(OPENAI_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LS.openaiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          temperature: 0,
+          messages: [
+            { role: 'system', content: systemMsg },
+            { role: 'user',   content: userMsg   },
+          ],
+        }),
+      });
+      if (res.status === 401) throw new Error('OpenAI API key is invalid or missing.');
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(`OpenAI error ${res.status}: ${err?.error?.message || 'unknown'}`);
+      }
       const data = await res.json();
-      const text = atob(data.content.replace(/\n/g, ''));
-      return JSON.parse(text);
+      return data.choices[0].message.content.trim();
     }
 
-    // ── Main search flow ───────────────────────────────────────────────────────
+    // ── Main search ────────────────────────────────────────────────────────────
     async function runSearch(query) {
-      if (!LS.token) { openSettings(true); return; }
+      if (!LS.isConfigured) { openSettings(true); return; }
 
       resetUI();
       askBtn.disabled = true;
       statusArea.style.display = 'block';
 
       try {
-        // Step 1: trigger
-        setStep(steps.trigger, 'active');
-        const since = new Date(Date.now() - 3000); // small buffer for clock skew
-        await triggerWorkflow(query);
-        setStep(steps.trigger, 'done');
+        // Step 1: Fetch all projects
+        activateStep(0);
+        const allProjects = (await marvinGet('/categories')).filter(p => !p.done);
 
-        // Step 2: find run + wait for completion
-        setStep(steps.wait, 'active');
-
-        let runId = null;
-        const findDeadline = Date.now() + 30_000;
-        while (!runId && Date.now() < findDeadline) {
-          await sleep(2000);
-          const run = await findRun(since);
-          if (run) runId = run.id;
+        // Step 2: Identify relevant projects with OpenAI
+        activateStep(1);
+        const roster = allProjects.map(p => `ID: ${p._id} | Title: ${p.title}`).join('\n');
+        const userMsg1 = `Query: ${query}\n\nProjects:\n${roster}`;
+        let relevantIds = [];
+        try {
+          const raw = await openaiChat(PROMPT_IDENTIFY_SYSTEM, userMsg1);
+          const parsed = JSON.parse(raw);
+          relevantIds = Array.isArray(parsed) ? parsed : [];
+        } catch (_) {
+          relevantIds = [];
         }
-        if (!runId) throw new Error('Could not find the triggered workflow run. It may still be queued — try refreshing in a moment.');
 
-        // Poll for completion (up to 3 min)
-        let elapsed = 0;
-        const TIMEOUT = 180_000;
-        while (elapsed < TIMEOUT) {
-          await sleep(3000);
-          elapsed += 3000;
-          const run = await pollRun(runId);
-          const secs = Math.round((Date.now() - since.getTime()) / 1000);
-          stepWaitText.textContent = `Waiting for result… (${secs}s)`;
-          if (run.status === 'completed') {
-            if (run.conclusion !== 'success') {
-              throw new Error(`Workflow ended with conclusion: ${run.conclusion}. Check the Actions tab for details.`);
-            }
-            break;
-          }
-          if (elapsed >= TIMEOUT) throw new Error('Timed out after 3 minutes waiting for the workflow to complete.');
+        if (relevantIds.length === 0) {
+          answerText.textContent = 'No relevant projects were found for this query.';
+          metaQuery.textContent  = 'Query: ' + query;
+          metaProj.textContent   = '';
+          allSteps.forEach(s => setStep(s, 'done'));
+          answerArea.style.display = 'block';
+          askBtn.disabled = false;
+          return;
         }
-        setStep(steps.wait, 'done');
 
-        // Step 3: read result
-        setStep(steps.read, 'active');
-        const result = await fetchResult();
-        showAnswer(result);
+        const projectMap = Object.fromEntries(allProjects.map(p => [p._id, p]));
+        const relevantProjects = relevantIds.map(id => projectMap[id]).filter(Boolean);
+
+        // Step 3: Fetch doc + children for each project in parallel
+        activateStep(2);
+        const contentBlocks = await Promise.all(relevantProjects.map(async (proj) => {
+          const pid = proj._id;
+          let note  = proj.note || '';
+          let tasks = [];
+
+          const [docRes, childrenRes] = await Promise.allSettled([
+            marvinGet(`/doc?id=${pid}`, true),
+            marvinGet(`/children?parentId=${pid}`, false),
+          ]);
+
+          if (docRes.status === 'fulfilled')      note  = docRes.value.note  || note;
+          if (childrenRes.status === 'fulfilled') tasks = (childrenRes.value || []).filter(c => c.db === 'Tasks');
+
+          return { title: proj.title, note: note.trim(), tasks };
+        }));
+
+        // Step 4: Generate answer
+        activateStep(3);
+        const context = contentBlocks.map(b => {
+          const taskLines = b.tasks.length
+            ? b.tasks.map(t => {
+                const status = t.done ? 'DONE' : 'active';
+                const notePart = t.note ? `\n    Note: ${t.note}` : '';
+                return `  - [${status}] ${t.title}${notePart}`;
+              }).join('\n')
+            : '  (none)';
+          return `== PROJECT: ${b.title} ==\nNotes:\n${b.note || '(none)'}\n\nTasks:\n${taskLines}`;
+        }).join('\n\n');
+
+        const userMsg2 = `Question: ${query}\n\nTask manager data:\n${context}`;
+        const answer = await openaiChat(PROMPT_ANSWER_SYSTEM, userMsg2);
+
+        // Display
+        allSteps.forEach(s => setStep(s, 'done'));
+        answerText.textContent = answer;
+        metaQuery.textContent  = 'Query: ' + query;
+        const projNames = contentBlocks.map(b => b.title);
+        metaProj.textContent = projNames.length ? 'Projects: ' + projNames.join(', ') : '';
+        answerArea.style.display = 'block';
+        askBtn.disabled = false;
 
       } catch (err) {
-        showError('Search failed', err.message);
+        const isCors = err instanceof TypeError && err.message.toLowerCase().includes('fetch');
+        const title  = isCors ? 'Network / CORS error' : 'Search failed';
+        const detail = isCors
+          ? `Could not reach the API. If this is a CORS error, check the browser console for details. (${err.message})`
+          : err.message;
+        showError(title, detail);
       }
     }
 
