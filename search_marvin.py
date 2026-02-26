@@ -6,12 +6,15 @@ import requests
 from openai import OpenAI
 
 # ─── API KEYS ─────────────────────────────────────────────────────────────────
-MARVIN_API_TOKEN = os.getenv("MARVIN_API_TOKEN")
-OPENAI_API_KEY   = os.getenv("OPENAI_API_KEY")
+MARVIN_API_TOKEN         = os.getenv("MARVIN_API_TOKEN")
+MARVIN_FULL_ACCESS_TOKEN = os.getenv("MARVIN_FULL_ACCESS_TOKEN")
+OPENAI_API_KEY           = os.getenv("OPENAI_API_KEY")
 # ──────────────────────────────────────────────────────────────────────────────
 
-BASE_URL      = "https://serv.amazingmarvin.com/api"
-READ_HEADERS  = {"X-API-Token": MARVIN_API_TOKEN}
+BASE_URL     = "https://serv.amazingmarvin.com/api"
+READ_HEADERS = {"X-API-Token": MARVIN_API_TOKEN}
+# /api/doc requires the full access token even for reads
+DOC_HEADERS  = {"X-Full-Access-Token": MARVIN_FULL_ACCESS_TOKEN}
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
 # gpt-4.1-nano pricing (per 1M tokens)
@@ -44,7 +47,7 @@ def get_all_projects() -> list:
 
 
 def get_project_doc(project_id: str) -> dict:
-    resp = requests.get(f"{BASE_URL}/doc?id={project_id}", headers=READ_HEADERS, timeout=15)
+    resp = requests.get(f"{BASE_URL}/doc?id={project_id}", headers=DOC_HEADERS, timeout=15)
     resp.raise_for_status()
     return resp.json()
 
