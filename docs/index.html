@@ -103,7 +103,7 @@
 
     /* ── Status ── */
     #status-area { margin-top: 24px; display: none; }
-    .status-step {
+    #thinking-indicator {
       display: flex;
       align-items: center;
       gap: 10px;
@@ -111,18 +111,6 @@
       font-size: 0.9rem;
       color: #555;
     }
-    .status-step .icon {
-      width: 20px; height: 20px;
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .status-step.pending .icon { color: #ccc; }
-    .status-step.active  .icon { color: #6c47ff; }
-    .status-step.done    .icon { color: #22c55e; }
-    .status-step.active { color: #333; font-weight: 500; }
-    .status-step.done   { color: #999; }
 
     .spinner {
       width: 18px; height: 18px;
@@ -306,21 +294,9 @@
     </form>
 
     <div id="status-area">
-      <div class="status-step" id="step-1">
-        <span class="icon">○</span>
-        <span>Fetching your projects…</span>
-      </div>
-      <div class="status-step" id="step-2">
-        <span class="icon">○</span>
-        <span>Identifying relevant projects…</span>
-      </div>
-      <div class="status-step" id="step-3">
-        <span class="icon">○</span>
-        <span>Reading project details…</span>
-      </div>
-      <div class="status-step" id="step-4">
-        <span class="icon">○</span>
-        <span>Generating answer…</span>
+      <div id="thinking-indicator">
+        <div class="spinner"></div>
+        <span>Thinking…</span>
       </div>
     </div>
 
@@ -335,6 +311,7 @@
       <div id="answer-meta">
         <span id="meta-query"></span>
         <span id="meta-projects"></span>
+        <span id="meta-cost"></span>
       </div>
     </div>
   </div>
@@ -490,43 +467,20 @@
     const answerText  = document.getElementById('answer-text');
     const metaQuery   = document.getElementById('meta-query');
     const metaProj    = document.getElementById('meta-projects');
-
-    const allSteps = [
-      document.getElementById('step-1'),
-      document.getElementById('step-2'),
-      document.getElementById('step-3'),
-      document.getElementById('step-4'),
-    ];
-
-    function setStep(el, state) {
-      el.className = 'status-step ' + state;
-      const icon = el.querySelector('.icon');
-      if (state === 'pending') icon.innerHTML = '○';
-      else if (state === 'active') icon.innerHTML = '<div class="spinner"></div>';
-      else if (state === 'done') icon.innerHTML = '✓';
-    }
-
-    function activateStep(index) {
-      allSteps.forEach((s, i) => {
-        if (i < index)  setStep(s, 'done');
-        else if (i === index) setStep(s, 'active');
-        else setStep(s, 'pending');
-      });
-    }
+    const metaCost    = document.getElementById('meta-cost');
 
     function resetUI() {
       statusArea.style.display = 'none';
       errorArea.style.display  = 'none';
       answerArea.style.display = 'none';
-      allSteps.forEach(s => setStep(s, 'pending'));
     }
 
     function showError(title, detail) {
       askBtn.disabled = false;
+      statusArea.style.display = 'none';
       errorTitle.textContent  = title;
       errorDetail.textContent = detail;
       errorArea.style.display = 'block';
-      allSteps.forEach(s => setStep(s, 'pending'));
     }
 
     // ── API helpers ────────────────────────────────────────────────────────────
@@ -561,7 +515,7 @@
         throw new Error(`OpenAI error ${res.status}: ${err?.error?.message || 'unknown'}`);
       }
       const data = await res.json();
-      return data.choices[0].message.content.trim();
+      return { content: data.choices[0].message.content.trim(), usage: data.usage };
     }
 
     // ── Main search ────────────────────────────────────────────────────────────
@@ -574,12 +528,10 @@
 
       try {
         // Step 1: Fetch all projects (include done/archived — they may still hold useful data)
-        activateStep(0);
         const allProjects = await marvinGet('/categories');
         console.debug('[Marvin] projects loaded:', allProjects.length);
 
         // Step 2: Identify relevant projects with OpenAI
-        activateStep(1);
         const candidates = keywordFilter(query, allProjects);
         console.debug('[Marvin] keyword candidates:', candidates.length, candidates.map(p => p.title));
         const roster = candidates.map(p => {
@@ -589,7 +541,7 @@
         const userMsg1 = `Query: ${query}\n\nProjects:\n${roster}`;
         let relevantIds = [];
         // openaiChat throws on API errors (401, 429, etc.) — let those propagate
-        const raw = await openaiChat(PROMPT_IDENTIFY_SYSTEM, userMsg1);
+        const { content: raw, usage: u1 } = await openaiChat(PROMPT_IDENTIFY_SYSTEM, userMsg1);
         console.debug('[Marvin] identify raw response:', raw);
         try {
           // Strip markdown code fences in case model wraps output
@@ -617,7 +569,6 @@
         const relevantProjects = relevantIds.map(id => projectMap[id]).filter(Boolean);
 
         // Step 3: Fetch doc + children for each project in parallel
-        activateStep(2);
         const contentBlocks = await Promise.all(relevantProjects.map(async (proj) => {
           const pid = proj._id;
           let note  = extractNoteText(proj.note);
@@ -635,7 +586,6 @@
         }));
 
         // Step 4: Generate answer
-        activateStep(3);
         const context = contentBlocks.map(b => {
           const taskLines = b.tasks.length
             ? b.tasks.map(t => {
@@ -648,14 +598,21 @@
         }).join('\n\n');
 
         const userMsg2 = `Question: ${query}\n\nTask manager data:\n${context}`;
-        const answer = await openaiChat(PROMPT_ANSWER_SYSTEM, userMsg2);
+        const { content: answer, usage: u2 } = await openaiChat(PROMPT_ANSWER_SYSTEM, userMsg2);
+
+        // Calculate cost (gpt-4.1-nano: $0.10/1M input, $0.40/1M output)
+        const totalIn  = (u1.prompt_tokens     || 0) + (u2.prompt_tokens     || 0);
+        const totalOut = (u1.completion_tokens || 0) + (u2.completion_tokens || 0);
+        const costUsd  = (totalIn / 1e6) * 0.10 + (totalOut / 1e6) * 0.40;
+        const costGbp  = costUsd * 0.79;
 
         // Display
-        allSteps.forEach(s => setStep(s, 'done'));
+        statusArea.style.display = 'none';
         answerText.textContent = answer;
         metaQuery.textContent  = 'Query: ' + query;
         const projNames = contentBlocks.map(b => b.title);
         metaProj.textContent = projNames.length ? 'Projects: ' + projNames.join(', ') : '';
+        metaCost.textContent = `Cost: $${costUsd.toFixed(5)} (~£${costGbp.toFixed(5)})`;
         answerArea.style.display = 'block';
         askBtn.disabled = false;
 
