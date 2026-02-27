@@ -431,6 +431,30 @@
 
     if (!LS.isConfigured) openSettings(true);
 
+    // ── Note text extractor (handles plain strings and Quill Delta JSON) ────────
+    function extractNoteText(note) {
+      if (!note) return '';
+      if (typeof note === 'string') {
+        try {
+          const parsed = JSON.parse(note);
+          if (parsed && Array.isArray(parsed.ops)) {
+            return parsed.ops
+              .filter(op => typeof op.insert === 'string')
+              .map(op => op.insert)
+              .join('').trim();
+          }
+        } catch (_) { /* plain string */ }
+        return note.trim();
+      }
+      if (typeof note === 'object' && Array.isArray(note.ops)) {
+        return note.ops
+          .filter(op => typeof op.insert === 'string')
+          .map(op => op.insert)
+          .join('').trim();
+      }
+      return '';
+    }
+
     // ── Keyword pre-filter ─────────────────────────────────────────────────────
     const STOP_WORDS = new Set([
       'the','and','for','with','what','when','where','how','this','that','from',
@@ -448,7 +472,7 @@
       if (words.length === 0) return projects;
 
       const matches = projects.filter(p => {
-        const haystack = ((p.title || '') + ' ' + (p.note || '')).toLowerCase();
+        const haystack = ((p.title || '') + ' ' + extractNoteText(p.note)).toLowerCase();
         return words.some(w => haystack.includes(w));
       });
 
@@ -559,7 +583,7 @@
         const candidates = keywordFilter(query, allProjects);
         console.debug('[Marvin] keyword candidates:', candidates.length, candidates.map(p => p.title));
         const roster = candidates.map(p => {
-          const noteSnippet = p.note ? ` | Note: ${p.note.slice(0, 80)}` : '';
+          const noteSnippet = extractNoteText(p.note) ? ` | Note: ${extractNoteText(p.note).slice(0, 80)}` : '';
           return `ID: ${p._id} | Title: ${p.title}${noteSnippet}`;
         }).join('\n');
         const userMsg1 = `Query: ${query}\n\nProjects:\n${roster}`;
@@ -596,7 +620,7 @@
         activateStep(2);
         const contentBlocks = await Promise.all(relevantProjects.map(async (proj) => {
           const pid = proj._id;
-          let note  = proj.note || '';
+          let note  = extractNoteText(proj.note);
           let tasks = [];
 
           const [docRes, childrenRes] = await Promise.allSettled([
@@ -604,10 +628,10 @@
             marvinGet(`/children?parentId=${pid}`, false),
           ]);
 
-          if (docRes.status === 'fulfilled')      note  = docRes.value.note  || note;
+          if (docRes.status === 'fulfilled')      note  = extractNoteText(docRes.value.note) || note;
           if (childrenRes.status === 'fulfilled') tasks = (childrenRes.value || []).filter(c => c.db === 'Tasks');
 
-          return { title: proj.title, note: note.trim(), tasks };
+          return { title: proj.title, note, tasks };
         }));
 
         // Step 4: Generate answer
@@ -616,7 +640,7 @@
           const taskLines = b.tasks.length
             ? b.tasks.map(t => {
                 const status = t.done ? 'DONE' : 'active';
-                const notePart = t.note ? `\n    Note: ${t.note}` : '';
+                const notePart = extractNoteText(t.note) ? `\n    Note: ${extractNoteText(t.note)}` : '';
                 return `  - [${status}] ${t.title}${notePart}`;
               }).join('\n')
             : '  (none)';
