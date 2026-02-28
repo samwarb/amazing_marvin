@@ -432,6 +432,34 @@
       return '';
     }
 
+    // ── Date query detection ──────────────────────────────────────────────────
+    function extractDateFromQuery(query) {
+      const lower = query.toLowerCase();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const fmt   = d => d.toISOString().slice(0, 10);
+      const add   = (d, n) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
+
+      if (/\btoday\b/.test(lower))     return fmt(today);
+      if (/\btomorrow\b/.test(lower))  return fmt(add(today, 1));
+      if (/\byesterday\b/.test(lower)) return fmt(add(today, -1));
+
+      // getDay(): Sun=0, Mon=1 … Sat=6
+      const days = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+      for (let i = 0; i < days.length; i++) {
+        if (new RegExp(`\\bnext\\s+${days[i]}\\b`).test(lower)) {
+          let delta = (i - today.getDay() + 7) % 7;
+          delta = delta === 0 ? 7 : delta + 7;
+          return fmt(add(today, delta));
+        }
+        if (new RegExp(`\\b${days[i]}\\b`).test(lower)) {
+          const delta = (i - today.getDay() + 7) % 7;
+          return fmt(add(today, delta));
+        }
+      }
+      return null;
+    }
+
     // ── Keyword pre-filter ─────────────────────────────────────────────────────
     const STOP_WORDS = new Set([
       'the','and','for','with','what','when','where','how','this','that','from',
@@ -527,6 +555,39 @@
       statusArea.style.display = 'block';
 
       try {
+        // Fast path: date-based queries use /todayItems directly
+        const targetDate = extractDateFromQuery(query);
+        if (targetDate) {
+          document.querySelector('#thinking-indicator span').textContent = `Fetching tasks for ${targetDate}…`;
+          const items = await marvinGet(`/todayItems?X-Date=${targetDate}`);
+          const tasks = (items || []).filter(t => t.db === 'Tasks');
+
+          const taskLines = tasks.length
+            ? tasks.map(t => {
+                const status   = t.done ? 'DONE' : 'active';
+                const notePart = extractNoteText(t.note) ? `\n  Note: ${extractNoteText(t.note)}` : '';
+                return `- [${status}] ${t.title}${notePart}`;
+              }).join('\n')
+            : '(no tasks scheduled for this day)';
+
+          const context  = `Tasks scheduled for ${targetDate}:\n${taskLines}`;
+          const userMsg2 = `Question: ${query}\n\nTask manager data:\n${context}`;
+          document.querySelector('#thinking-indicator span').textContent = 'Generating answer…';
+          const { content: answer, usage: u2 } = await openaiChat(PROMPT_ANSWER_SYSTEM, userMsg2);
+
+          const costUsd = ((u2.prompt_tokens || 0) / 1e6) * 0.10 + ((u2.completion_tokens || 0) / 1e6) * 0.40;
+          const costGbp = costUsd * 0.79;
+
+          statusArea.style.display = 'none';
+          answerText.textContent   = answer;
+          metaQuery.textContent    = 'Query: ' + query;
+          metaProj.textContent     = `Date: ${targetDate} · ${tasks.length} task(s) found`;
+          metaCost.textContent     = `Cost: $${costUsd.toFixed(5)} (~£${costGbp.toFixed(5)})`;
+          answerArea.style.display = 'block';
+          askBtn.disabled          = false;
+          return;
+        }
+
         // Step 1: Fetch all projects (include done/archived — they may still hold useful data)
         const allProjects = await marvinGet('/categories');
         console.debug('[Marvin] projects loaded:', allProjects.length);
