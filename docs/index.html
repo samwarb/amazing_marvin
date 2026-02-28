@@ -512,11 +512,11 @@
     }
 
     // ── API helpers ────────────────────────────────────────────────────────────
-    async function marvinGet(path, useFullToken = false) {
+    async function marvinGet(path, useFullToken = false, extraHeaders = {}) {
       const header = useFullToken
         ? { 'X-Full-Access-Token': LS.marvinFullToken }
         : { 'X-API-Token': LS.marvinToken };
-      const res = await fetch(MARVIN_BASE + path, { headers: header });
+      const res = await fetch(MARVIN_BASE + path, { headers: { ...header, ...extraHeaders } });
       if (!res.ok) throw new Error(`Marvin API error ${res.status} for ${path}`);
       return res.json();
     }
@@ -559,7 +559,7 @@
         const targetDate = extractDateFromQuery(query);
         if (targetDate) {
           document.querySelector('#thinking-indicator span').textContent = `Fetching tasks for ${targetDate}…`;
-          const items = await marvinGet(`/todayItems?X-Date=${targetDate}`);
+          const items = await marvinGet('/todayItems', false, { 'X-Date': targetDate });
           const tasks = (items || []).filter(t => t.db === 'Tasks');
 
           const taskLines = tasks.length
