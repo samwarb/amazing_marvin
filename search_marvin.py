@@ -86,15 +86,6 @@ def get_project_doc(project_id: str) -> dict:
     return resp.json()
 
 
-def get_scheduled_for_date(date_str: str) -> list:
-    resp = requests.get(
-        f"{BASE_URL}/todayItems",
-        headers={**READ_HEADERS, "X-Date": date_str},
-        timeout=15,
-    )
-    resp.raise_for_status()
-    return [t for t in resp.json() if t.get("db") == "Tasks"]
-
 
 def get_project_children(project_id: str) -> list:
     resp = requests.get(
@@ -309,15 +300,26 @@ def main():
     print(f"Search query: {query}")
     print("-" * 60)
 
-    # Fast path: date-based queries go straight to the todayItems API
+    # Date queries: scan every project's children for tasks on that day
     target_date = extract_date_from_query(query)
     if target_date:
-        print(f"Date query detected — fetching tasks scheduled for {target_date}...")
-        tasks = get_scheduled_for_date(target_date)
-        print(f"  Found {len(tasks)} task(s).")
-        content_blocks = [{"id": target_date, "title": f"Scheduled for {target_date}", "note": "", "tasks": tasks}]
+        print(f"Date query detected — scanning all projects for tasks on {target_date}...")
+        all_projects = get_all_projects()
+        print(f"  Scanning {len(all_projects)} projects in parallel...")
+        content_blocks = gather_project_content(all_projects)
+
+        # Keep only tasks scheduled on target_date, drop empty projects
+        date_blocks = []
+        for block in content_blocks:
+            day_tasks = [t for t in block["tasks"] if t.get("day") == target_date]
+            if day_tasks:
+                date_blocks.append({**block, "tasks": day_tasks})
+
+        total_tasks = sum(len(b["tasks"]) for b in date_blocks)
+        print(f"  Found {total_tasks} task(s) across {len(date_blocks)} project(s).")
+
         print("\nGenerating answer...")
-        answer = generate_answer(query, content_blocks)
+        answer = generate_answer(query, date_blocks or [{"id": "none", "title": f"No tasks for {target_date}", "note": "", "tasks": []}])
         print("\n" + "=" * 60)
         print("ANSWER")
         print("=" * 60)
@@ -330,7 +332,7 @@ def main():
             with open("last_result.json", "w") as _f:
                 json.dump({"query": query, "answer": answer,
                            "timestamp": datetime.now(timezone.utc).isoformat(),
-                           "projects": [f"todayItems:{target_date}"]}, _f, indent=2)
+                           "projects": [b["title"] for b in date_blocks]}, _f, indent=2)
         return
 
     # Phase 1: fetch all projects and identify relevant ones

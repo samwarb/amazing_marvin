@@ -555,40 +555,59 @@
       statusArea.style.display = 'block';
 
       try {
-        // Fast path: date-based queries use /todayItems directly
+        // Date queries: scan every project's children for tasks on that day
         const targetDate = extractDateFromQuery(query);
         if (targetDate) {
-          document.querySelector('#thinking-indicator span').textContent = `Fetching tasks for ${targetDate}…`;
-          const items = await marvinGet(`/todayItems?X-Date=${targetDate}`);
-          const tasks = (items || []).filter(t => t.db === 'Tasks');
+          document.querySelector('#thinking-indicator span').textContent = `Scanning all projects for ${targetDate}…`;
+          const allProjects = await marvinGet('/categories');
+          const active = allProjects.filter(p => !p.done);
 
-          const taskLines = tasks.length
-            ? tasks.map(t => {
-                const status   = t.done ? 'DONE' : 'active';
-                const notePart = extractNoteText(t.note) ? `\n  Note: ${extractNoteText(t.note)}` : '';
-                return `- [${status}] ${t.title}${notePart}`;
-              }).join('\n')
-            : '(no tasks scheduled for this day)';
+          // Fetch children of every project in parallel
+          const childrenAll = await Promise.allSettled(
+            active.map(p => marvinGet(`/children?parentId=${p._id}`))
+          );
 
-          const context  = `Tasks scheduled for ${targetDate}:\n${taskLines}`;
-          const userMsg2 = `Question: ${query}\n\nTask manager data:\n${context}`;
+          // Group tasks by project, keeping only those scheduled on targetDate
+          const dateBlocks = [];
+          active.forEach((proj, i) => {
+            if (childrenAll[i].status !== 'fulfilled') return;
+            const dayTasks = (childrenAll[i].value || [])
+              .filter(t => t.db === 'Tasks' && t.day === targetDate);
+            if (dayTasks.length > 0) dateBlocks.push({ title: proj.title, tasks: dayTasks });
+          });
+
+          const context = dateBlocks.length
+            ? dateBlocks.map(b =>
+                `== PROJECT: ${b.title} ==\n` +
+                b.tasks.map(t => {
+                  const status   = t.done ? 'DONE' : 'active';
+                  const notePart = extractNoteText(t.note) ? `\n    Note: ${extractNoteText(t.note)}` : '';
+                  return `  - [${status}] ${t.title}${notePart}`;
+                }).join('\n')
+              ).join('\n\n')
+            : `(no tasks scheduled for ${targetDate})`;
+
           document.querySelector('#thinking-indicator span').textContent = 'Generating answer…';
-          const { content: answer, usage: u2 } = await openaiChat(PROMPT_ANSWER_SYSTEM, userMsg2);
+          const { content: answer, usage: u2 } = await openaiChat(
+            PROMPT_ANSWER_SYSTEM,
+            `Question: ${query}\n\nTask manager data:\n${context}`
+          );
 
+          const totalTasks = dateBlocks.reduce((n, b) => n + b.tasks.length, 0);
           const costUsd = ((u2.prompt_tokens || 0) / 1e6) * 0.10 + ((u2.completion_tokens || 0) / 1e6) * 0.40;
           const costGbp = costUsd * 0.79;
 
           statusArea.style.display = 'none';
           answerText.textContent   = answer;
           metaQuery.textContent    = 'Query: ' + query;
-          metaProj.textContent     = `Date: ${targetDate} · ${tasks.length} task(s) found`;
+          metaProj.textContent     = `Date: ${targetDate} · ${totalTasks} task(s) across ${dateBlocks.length} project(s)`;
           metaCost.textContent     = `Cost: $${costUsd.toFixed(5)} (~£${costGbp.toFixed(5)})`;
           answerArea.style.display = 'block';
           askBtn.disabled          = false;
           return;
         }
 
-        // Step 1: Fetch all projects (include done/archived — they may still hold useful data)
+        // Non-date queries: project-based search
         const allProjects = await marvinGet('/categories');
         console.debug('[Marvin] projects loaded:', allProjects.length);
 
