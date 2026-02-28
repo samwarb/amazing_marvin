@@ -1,5 +1,7 @@
+import datetime
 import json
 import os
+import re
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -39,6 +41,37 @@ def get_query() -> str:
     return input("What do you want to know? ").strip()
 
 
+# ─── DATE DETECTION ───────────────────────────────────────────────────────────
+
+def extract_date_from_query(query: str):
+    """Return a YYYY-MM-DD date string if the query names a specific day, else None."""
+    lower = query.lower()
+    today = datetime.date.today()
+
+    if re.search(r'\btoday\b', lower):
+        return today.isoformat()
+    if re.search(r'\btomorrow\b', lower):
+        return (today + datetime.timedelta(days=1)).isoformat()
+    if re.search(r'\byesterday\b', lower):
+        return (today - datetime.timedelta(days=1)).isoformat()
+
+    # Python weekday(): Mon=0 … Sun=6
+    day_map = {
+        'monday': 0, 'tuesday': 1, 'wednesday': 2, 'thursday': 3,
+        'friday': 4, 'saturday': 5, 'sunday': 6,
+    }
+    for day_name, weekday_idx in day_map.items():
+        if re.search(rf'\bnext\s+{day_name}\b', lower):
+            delta = (weekday_idx - today.weekday() + 7) % 7
+            delta = 7 if delta == 0 else delta + 7
+            return (today + datetime.timedelta(days=delta)).isoformat()
+        if re.search(rf'\b{day_name}\b', lower):
+            delta = (weekday_idx - today.weekday() + 7) % 7
+            return (today + datetime.timedelta(days=delta)).isoformat()
+
+    return None
+
+
 # ─── API FUNCTIONS (read-only) ────────────────────────────────────────────────
 
 def get_all_projects() -> list:
@@ -51,6 +84,17 @@ def get_project_doc(project_id: str) -> dict:
     resp = requests.get(f"{BASE_URL}/doc?id={project_id}", headers=DOC_HEADERS, timeout=15)
     resp.raise_for_status()
     return resp.json()
+
+
+def get_scheduled_for_date(date_str: str) -> list:
+    resp = requests.get(
+        f"{BASE_URL}/todayItems",
+        headers=READ_HEADERS,
+        params={"X-Date": date_str},
+        timeout=15,
+    )
+    resp.raise_for_status()
+    return [t for t in resp.json() if t.get("db") == "Tasks"]
 
 
 def get_project_children(project_id: str) -> list:
@@ -265,6 +309,30 @@ def main():
 
     print(f"Search query: {query}")
     print("-" * 60)
+
+    # Fast path: date-based queries go straight to the todayItems API
+    target_date = extract_date_from_query(query)
+    if target_date:
+        print(f"Date query detected — fetching tasks scheduled for {target_date}...")
+        tasks = get_scheduled_for_date(target_date)
+        print(f"  Found {len(tasks)} task(s).")
+        content_blocks = [{"id": target_date, "title": f"Scheduled for {target_date}", "note": "", "tasks": tasks}]
+        print("\nGenerating answer...")
+        answer = generate_answer(query, content_blocks)
+        print("\n" + "=" * 60)
+        print("ANSWER")
+        print("=" * 60)
+        print(answer)
+        print("=" * 60)
+        print_usage_summary()
+        write_github_summary(query, [], answer)
+        if os.getenv("GITHUB_ACTIONS"):
+            from datetime import datetime, timezone
+            with open("last_result.json", "w") as _f:
+                json.dump({"query": query, "answer": answer,
+                           "timestamp": datetime.now(timezone.utc).isoformat(),
+                           "projects": [f"todayItems:{target_date}"]}, _f, indent=2)
+        return
 
     # Phase 1: fetch all projects and identify relevant ones
     print("Phase 1: Fetching all projects...")
