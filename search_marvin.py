@@ -89,8 +89,7 @@ def get_project_doc(project_id: str) -> dict:
 def get_scheduled_for_date(date_str: str) -> list:
     resp = requests.get(
         f"{BASE_URL}/todayItems",
-        headers=READ_HEADERS,
-        params={"X-Date": date_str},
+        headers={**READ_HEADERS, "X-Date": date_str},
         timeout=15,
     )
     resp.raise_for_status()
