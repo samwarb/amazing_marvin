@@ -437,7 +437,7 @@
       const lower = query.toLowerCase();
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const fmt   = d => d.toISOString().slice(0, 10);
+      const fmt   = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
       const add   = (d, n) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
 
       if (/\btoday\b/.test(lower))     return fmt(today);
