@@ -590,8 +590,9 @@
           const taskLines = b.tasks.length
             ? b.tasks.map(t => {
                 const status = t.done ? 'DONE' : 'active';
+                const scheduledPart = t.day ? ` (scheduled: ${t.day})` : '';
                 const notePart = extractNoteText(t.note) ? `\n    Note: ${extractNoteText(t.note)}` : '';
-                return `  - [${status}] ${t.title}${notePart}`;
+                return `  - [${status}] ${t.title}${scheduledPart}${notePart}`;
               }).join('\n')
             : '  (none)';
           return `== PROJECT: ${b.title} ==\nNotes:\n${b.note || '(none)'}\n\nTasks:\n${taskLines}`;

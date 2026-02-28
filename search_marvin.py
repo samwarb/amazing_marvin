@@ -166,7 +166,10 @@ def generate_answer(query: str, content_blocks: list) -> str:
             for t in block["tasks"]:
                 status    = "DONE" if t.get("done") else "active"
                 task_note = t.get("note", "").strip()
+                scheduled = t.get("day", "")
                 line      = f"  - [{status}] {t.get('title', '')}"
+                if scheduled:
+                    line += f" (scheduled: {scheduled})"
                 if task_note:
                     line += f"\n    Note: {task_note}"
                 task_lines.append(line)
