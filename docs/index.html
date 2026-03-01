@@ -555,7 +555,7 @@
       statusArea.style.display = 'block';
 
       try {
-        // Date queries: scan every project's children for tasks on that day
+        // Date queries: 2-level scan to find tasks at any nesting depth
         const targetDate = extractDateFromQuery(query);
         if (targetDate) {
           document.querySelector('#thinking-indicator span').textContent = `Scanning all projects for ${targetDate}…`;
@@ -564,19 +564,50 @@
           // Also include inbox (tasks not assigned to any project)
           const sources = [...active, { _id: 'unassigned', title: 'Inbox' }];
 
-          // Fetch children of every project in parallel
-          const childrenAll = await Promise.allSettled(
+          // Level 1: fetch direct children of every project/inbox
+          const level1Results = await Promise.allSettled(
             sources.map(p => marvinGet(`/children?parentId=${p._id}`))
           );
 
-          // Group tasks by project, keeping only those scheduled on targetDate
-          const dateBlocks = [];
-          sources.forEach((proj, i) => {
-            if (childrenAll[i].status !== 'fulfilled') return;
-            const dayTasks = (childrenAll[i].value || [])
-              .filter(t => t.db === 'Tasks' && t.day === targetDate);
-            if (dayTasks.length > 0) dateBlocks.push({ title: proj.title, tasks: dayTasks });
+          // Collect matched tasks and container candidates for level 2
+          const matchedTasks = new Map(); // _id → {task, projTitle}
+          const containers   = [];        // [{item, projTitle}] — items with no day (likely sub-projects)
+
+          sources.forEach((src, i) => {
+            if (level1Results[i].status !== 'fulfilled') return;
+            (level1Results[i].value || []).forEach(item => {
+              if (item.db === 'Tasks' && item.day === targetDate) {
+                matchedTasks.set(item._id, { task: item, projTitle: src.title });
+              } else if (!item.day) {
+                // No day set → likely a container task housing scheduled sub-tasks
+                containers.push({ item, projTitle: src.title });
+              }
+            });
           });
+
+          // Level 2: fetch children of container tasks to catch nested scheduled tasks
+          if (containers.length > 0) {
+            document.querySelector('#thinking-indicator span').textContent = 'Scanning nested tasks…';
+            const level2Results = await Promise.allSettled(
+              containers.map(({ item }) => marvinGet(`/children?parentId=${item._id}`))
+            );
+            containers.forEach(({ projTitle }, i) => {
+              if (level2Results[i].status !== 'fulfilled') return;
+              (level2Results[i].value || []).forEach(child => {
+                if (child.db === 'Tasks' && child.day === targetDate && !matchedTasks.has(child._id)) {
+                  matchedTasks.set(child._id, { task: child, projTitle });
+                }
+              });
+            });
+          }
+
+          // Group matched tasks by project
+          const projGroups = new Map();
+          for (const { task, projTitle } of matchedTasks.values()) {
+            if (!projGroups.has(projTitle)) projGroups.set(projTitle, []);
+            projGroups.get(projTitle).push(task);
+          }
+          const dateBlocks = [...projGroups.entries()].map(([title, tasks]) => ({ title, tasks }));
 
           const context = dateBlocks.length
             ? dateBlocks.map(b =>
