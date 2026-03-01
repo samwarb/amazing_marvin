@@ -561,15 +561,17 @@
           document.querySelector('#thinking-indicator span').textContent = `Scanning all projects for ${targetDate}…`;
           const allProjects = await marvinGet('/categories');
           const active = allProjects.filter(p => !p.done);
+          // Also include inbox (tasks not assigned to any project)
+          const sources = [...active, { _id: 'unassigned', title: 'Inbox' }];
 
           // Fetch children of every project in parallel
           const childrenAll = await Promise.allSettled(
-            active.map(p => marvinGet(`/children?parentId=${p._id}`))
+            sources.map(p => marvinGet(`/children?parentId=${p._id}`))
           );
 
           // Group tasks by project, keeping only those scheduled on targetDate
           const dateBlocks = [];
-          active.forEach((proj, i) => {
+          sources.forEach((proj, i) => {
             if (childrenAll[i].status !== 'fulfilled') return;
             const dayTasks = (childrenAll[i].value || [])
               .filter(t => t.db === 'Tasks' && t.day === targetDate);

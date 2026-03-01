@@ -305,8 +305,10 @@ def main():
     if target_date:
         print(f"Date query detected — scanning all projects for tasks on {target_date}...")
         all_projects = get_all_projects()
-        print(f"  Scanning {len(all_projects)} projects in parallel...")
-        content_blocks = gather_project_content(all_projects)
+        # Also include inbox (tasks not assigned to any project)
+        all_projects_with_inbox = all_projects + [{"_id": "unassigned", "title": "Inbox"}]
+        print(f"  Scanning {len(all_projects_with_inbox)} sources in parallel...")
+        content_blocks = gather_project_content(all_projects_with_inbox)
 
         # Keep only tasks scheduled on target_date, drop empty projects
         date_blocks = []
