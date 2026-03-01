@@ -607,6 +607,25 @@
             });
           }
 
+          // "Next actions" pass: Amazing Marvin schedules undated tasks from "Next"
+          // lists on the next available work day — these won't have a `day` field so
+          // the date scan misses them. Include them for near-future date queries.
+          const today0 = new Date(); today0.setHours(0, 0, 0, 0);
+          const daysAhead = Math.round((new Date(targetDate) - today0) / 86400000);
+          if (daysAhead >= 0 && daysAhead <= 14) {
+            sources.forEach((proj, i) => {
+              if (childrenAll[i].status !== 'fulfilled') return;
+              if (!/\bnext\b/i.test(proj.title || '')) return;
+              const undated = (childrenAll[i].value || [])
+                .filter(t => t.db === 'Tasks' && !t.done && !t.day && !seenIds.has(t._id));
+              if (undated.length === 0) return;
+              undated.forEach(t => seenIds.add(t._id));
+              const block = dateBlocks.find(b => b.title === proj.title);
+              if (block) block.tasks.push(...undated);
+              else dateBlocks.push({ title: proj.title, tasks: undated });
+            });
+          }
+
           const context = dateBlocks.length
             ? dateBlocks.map(b =>
                 `== PROJECT: ${b.title} ==\n` +
